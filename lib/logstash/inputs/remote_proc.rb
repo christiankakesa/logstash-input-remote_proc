@@ -7,7 +7,28 @@ require 'stud/interval'
 
 module LogStash
   module Inputs
-    # Pull system metrics from remote server via `procfs`.
+    # Collecting PROCFS metrics through SSH.
+    #
+    # Supported endpoints :
+    #  * /proc/cpuinfo
+    #  * /proc/meminfo
+    #  * /proc/loadavg
+    #  * /proc/vmstat
+    #
+    # The fallowing example shows how to retrieve system metrics from
+    # remote server and output the result to the standard output:
+    #
+    # [source,ruby]
+    # input {
+    #   remote_proc {
+    #     servers => [{ host => "remote.server.com" username => "medium" }]
+    #   }
+    # }
+    #
+    # output {
+    #   stdout { codec => rubydebug }
+    # }
+    #
     class RemoteProc < LogStash::Inputs::Base
       # Describe valid keys and default values in `@servers` parameter.
       SERVER_OPTIONS = {
@@ -18,7 +39,7 @@ module LogStash
         'password' => nil          # :string (needed if no 'ssh_private_key')
       }.freeze
 
-      # Liste of commands for each `/proc` endpoint.
+      # Liste of commands for each `/proc` endpoints.
       COMMANDS = {
         cpuinfo: 'cat /proc/cpuinfo',
         meminfo: 'cat /proc/meminfo',
@@ -64,10 +85,10 @@ module LogStash
       def run(queue)
         # we can abort the loop if stop? becomes true
         until stop?
-          proc_cpuinfo(queue)
-          proc_meminfo(queue)
-          proc_loadavg(queue)
-          proc_vmstat(queue)
+          [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat]
+            .each do |method|
+            send(method, queue)
+          end
 
           @ssh_session.loop
 
