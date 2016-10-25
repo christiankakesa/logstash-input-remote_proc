@@ -20,13 +20,13 @@ When no password is given, the private key path are : `$HOME/.ssh/id_dsa`, `$HOM
 
 ### SSH server with default values and authenticate by private key
 
-```json
+```javascript
 input { remote_proc { servers => [{}] } } output { stdout { codec => rubydebug } }
 ```
 
 ### With SSH server `host`, `port` and `username` and authenticate by private key
 
-```json
+```javascript
 input {
     remote_proc {
         servers => [
@@ -41,7 +41,7 @@ output {
 
 ### With SSH server `host`, `port` and `username` and authenticate by a specific private key file
 
-```json
+```javascript
 input {
     remote_proc {
         servers => [
@@ -55,7 +55,7 @@ output {
 ```
 
 ### With SSH server `host`, `port` and `username` and authenticate by password
-```json
+```javascript
 input {
     remote_proc {
         servers => [
