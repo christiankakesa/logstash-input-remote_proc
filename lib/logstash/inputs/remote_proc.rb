@@ -120,6 +120,7 @@ module LogStash
             cpuinfo[index][m[1]] = value
           end
           # Other computed fields
+          cpuinfo[0]['cpu cores'] = 1 unless cpuinfo[0].include?('cpu cores')
           cpuinfo['threads per core'] = num_cpu / cpuinfo[0]['cpu cores']
           event = LogStash::Event.new(cpuinfo: cpuinfo,
                                       host: @host,
