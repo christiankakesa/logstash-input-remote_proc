@@ -1,4 +1,4 @@
-# Logstash Plugin
+# Logstash RemoteProc Input Plugin
 
 [![Travis Build Status](https://travis-ci.org/fenicks/logstash-input-remote_proc.svg)](https://travis-ci.org/fenicks/logstash-input-remote_proc)
 
