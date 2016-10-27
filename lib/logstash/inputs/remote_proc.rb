@@ -19,6 +19,7 @@ module LogStash
     # remote server and output the result to the standard output:
     #
     # [source,ruby]
+    # -------------------------------------------------------------------------
     # input {
     #   remote_proc {
     #     servers => [{ host => "remote.server.com" username => "medium" }]
@@ -28,6 +29,7 @@ module LogStash
     # output {
     #   stdout { codec => rubydebug }
     # }
+    # -------------------------------------------------------------------------
     #
     class RemoteProc < LogStash::Inputs::Base
       # Describe valid keys and default values in `@servers` parameter.
