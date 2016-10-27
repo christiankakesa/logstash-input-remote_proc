@@ -46,7 +46,8 @@ module LogStash
         cpuinfo: 'cat /proc/cpuinfo',
         meminfo: 'cat /proc/meminfo',
         loadavg: 'cat /proc/loadavg',
-        vmstat: 'cat /proc/vmstat'
+        vmstat: 'cat /proc/vmstat',
+        diskstats: 'cat /proc/diskstats'
       }.freeze
 
       config_name 'remote_proc'
@@ -87,8 +88,8 @@ module LogStash
       def run(queue)
         # we can abort the loop if stop? becomes true
         until stop?
-          [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat]
-            .each do |method|
+          [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
+           :proc_diskstats].each do |method|
             send(method, queue)
           end
 
@@ -117,7 +118,7 @@ module LogStash
           cpuinfo = {}
           num_cpu = 0
           data.split(/$/).each do |line|
-            next if line.tr("\n", '').empty?
+            next if line.strip.empty?
             m = /([^\n\t:]+)\s*:\s+(.+)$/.match(line)
             next unless m
             # Apply filters
@@ -184,6 +185,7 @@ module LogStash
         @ssh_session.exec(COMMANDS[:loadavg]) do |ch, stream, data|
           next unless stream == :stdout # ignore :stderr
           m = %r{([\d\.]+)\s+([\d\.]+)\s+([\d\.])+\s+(\d+)\/(\d+)\s+(\d+)}.match(data)
+          next unless m
           if m && m.length >= 6
             loadavg = { '1minute' => m[1].to_f,
                         '5minutes' => m[2].to_f,
@@ -218,6 +220,42 @@ module LogStash
                                       metric_name: 'system-vmstat',
                                       remote_host: ch[:host],
                                       command: COMMANDS[:vmstat])
+          decorate(event)
+          queue << event
+        end
+      end
+
+      # Process DISKSTATS data
+      # https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats
+      # https://www.kernel.org/doc/Documentation/iostats.txt
+      def proc_diskstats(queue)
+        @ssh_session.exec(COMMANDS[:diskstats]) do |ch, stream, data|
+          next unless stream == :stdout # ignore :stderr
+          diskstats = {}
+          data.split(/$/).each do |line|
+            t = line.strip.split(/\s+/)
+            next if t.empty?
+            diskstats[t[2]] = {} # device name
+            diskstats[t[2]]['major number'] = t[0].to_i
+            diskstats[t[2]]['minor number'] = t[1].to_i
+            diskstats[t[2]]['reads completed'] = t[3].to_i
+            diskstats[t[2]]['reads merged'] = t[4].to_i
+            diskstats[t[2]]['sectors read'] = t[5].to_i
+            diskstats[t[2]]['time spent reading ms'] = t[6].to_i
+            diskstats[t[2]]['writes completed'] = t[7].to_i
+            diskstats[t[2]]['writes merged'] = t[8].to_i
+            diskstats[t[2]]['sectors written'] = t[9].to_i
+            diskstats[t[2]]['time spent writing ms'] = t[10].to_i
+            diskstats[t[2]]['io in progress'] = t[11].to_i
+            diskstats[t[2]]['io time spent ms'] = t[12].to_i
+            diskstats[t[2]]['io weighted time spent ms'] = t[13].to_i
+          end
+          event = LogStash::Event.new(diskstats: diskstats,
+                                      host: @host,
+                                      type: @type || 'system-diskstats',
+                                      metric_name: 'system-diskstats',
+                                      remote_host: ch[:host],
+                                      command: COMMANDS[:diskstats])
           decorate(event)
           queue << event
         end
