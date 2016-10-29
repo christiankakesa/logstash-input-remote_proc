@@ -150,7 +150,8 @@ module LogStash
                                       type: @type || 'system-cpuinfo',
                                       metric_name: 'system-cpuinfo',
                                       remote_host: ch[:host],
-                                      command: COMMANDS[:cpuinfo])
+                                      command: COMMANDS[:cpuinfo],
+                                      message: data)
           decorate(event)
           queue << event
         end
@@ -173,7 +174,8 @@ module LogStash
                                       type: @type || 'system-meminfo',
                                       metric_name: 'system-meminfo',
                                       remote_host: ch[:host],
-                                      command: COMMANDS[:meminfo])
+                                      command: COMMANDS[:meminfo],
+                                      message: data)
           decorate(event)
           queue << event
         end
@@ -197,7 +199,8 @@ module LogStash
                                         type: @type || 'system-loadavg',
                                         metric_name: 'system-loadavg',
                                         remote_host: ch[:host],
-                                        command: COMMANDS[:loadavg])
+                                        command: COMMANDS[:loadavg],
+                                        message: data)
             decorate(event)
             queue << event
           end
@@ -218,7 +221,8 @@ module LogStash
                                       type: @type || 'system-vmstat',
                                       metric_name: 'system-vmstat',
                                       remote_host: ch[:host],
-                                      command: COMMANDS[:vmstat])
+                                      command: COMMANDS[:vmstat],
+                                      message: data)
           decorate(event)
           queue << event
         end
@@ -254,7 +258,8 @@ module LogStash
                                       type: @type || 'system-diskstats',
                                       metric_name: 'system-diskstats',
                                       remote_host: ch[:host],
-                                      command: COMMANDS[:diskstats])
+                                      command: COMMANDS[:diskstats],
+                                      message: data)
           decorate(event)
           queue << event
         end
@@ -294,7 +299,8 @@ module LogStash
                                       type: @type || 'system-netdev',
                                       metric_name: 'system-netdev',
                                       remote_host: ch[:host],
-                                      command: COMMANDS[:netdev])
+                                      command: COMMANDS[:netdev],
+                                      message: data)
           decorate(event)
           queue << event
         end
