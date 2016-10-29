@@ -1,7 +1,6 @@
 # encoding: utf-8
 require 'logstash/inputs/base'
 require 'logstash/namespace'
-require 'net/ssh/multi'
 require 'socket' # for Socket.gethostname
 require 'stud/interval'
 
@@ -68,12 +67,9 @@ module LogStash
       # The default, `60`, means send a message every second.
       config :interval, validate: :number, default: 60
 
-      def initialize(*args)
-        super(*args)
-        @ssh_session = Net::SSH::Multi.start(on_error: :warn)
-      end
-
       def register
+        require 'net/ssh/multi'
+        @ssh_session = Net::SSH::Multi.start(on_error: :warn)
         # Prepare all server connections
         @servers.each do |s|
           prepare_servers!(s)
@@ -92,7 +88,7 @@ module LogStash
         # we can abort the loop if stop? becomes true
         until stop?
           [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
-            :proc_diskstats].each do |method|
+           :proc_diskstats, :proc_netdev].each do |method|
             send(method, queue)
           end
 
