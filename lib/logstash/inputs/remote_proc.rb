@@ -91,9 +91,8 @@ module LogStash
       def run(queue)
         # we can abort the loop if stop? becomes true
         until stop?
-          # [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
-          #  :proc_diskstats].each do |method|
-          [:proc_netdev].each do |method|
+          [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
+            :proc_diskstats].each do |method|
             send(method, queue)
           end
 
