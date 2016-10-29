@@ -1,6 +1,7 @@
 # encoding: utf-8
 require 'logstash/devutils/rspec/spec_helper'
 require 'logstash/inputs/remote_proc'
+require 'net/ssh/multi'
 
 describe LogStash::Inputs::RemoteProc do
   let(:config) do
