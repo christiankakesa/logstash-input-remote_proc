@@ -14,6 +14,8 @@ module LogStash
     #  * /proc/meminfo
     #  * /proc/loadavg
     #  * /proc/vmstat
+    #  * /proc/diskstats
+    #  * /proc/net/dev
     #
     # The fallowing example shows how to retrieve system metrics from
     # remote server and output the result to the standard output:
@@ -47,7 +49,8 @@ module LogStash
         meminfo: 'cat /proc/meminfo',
         loadavg: 'cat /proc/loadavg',
         vmstat: 'cat /proc/vmstat',
-        diskstats: 'cat /proc/diskstats'
+        diskstats: 'cat /proc/diskstats',
+        netdev: 'cat /proc/net/dev'
       }.freeze
 
       config_name 'remote_proc'
@@ -88,8 +91,9 @@ module LogStash
       def run(queue)
         # we can abort the loop if stop? becomes true
         until stop?
-          [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
-           :proc_diskstats].each do |method|
+          # [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
+          #  :proc_diskstats].each do |method|
+          [:proc_netdev].each do |method|
             send(method, queue)
           end
 
@@ -256,6 +260,46 @@ module LogStash
                                       metric_name: 'system-diskstats',
                                       remote_host: ch[:host],
                                       command: COMMANDS[:diskstats])
+          decorate(event)
+          queue << event
+        end
+      end
+
+      # Process NETDEV data
+      def proc_netdev(queue)
+        @ssh_session.exec(COMMANDS[:netdev]) do |ch, stream, data|
+          next unless stream == :stdout # ignore :stderr
+          lines = data.split(/$/)
+          _ = lines.shift # Remove first line
+          _ = lines.shift # Remove second line
+          netdev = {}
+          lines.each do |l|
+            t = l.strip.split(/[:\s]+/)
+            next if t.empty? && t.length >= 17
+            netdev[t[0]] = {}
+            netdev[t[0]]['rxbytes'] = t[1].to_i
+            netdev[t[0]]['rxpackets'] = t[2].to_i
+            netdev[t[0]]['rxerrs'] = t[3].to_i
+            netdev[t[0]]['rxdrop'] = t[4].to_i
+            netdev[t[0]]['rxfifo'] = t[5].to_i
+            netdev[t[0]]['rxframe'] = t[6].to_i
+            netdev[t[0]]['rxcompressed'] = t[7].to_i
+            netdev[t[0]]['rxmulticast'] = t[8].to_i
+            netdev[t[0]]['txbytes'] = t[9].to_i
+            netdev[t[0]]['txpackets'] = t[10].to_i
+            netdev[t[0]]['txerrs'] = t[11].to_i
+            netdev[t[0]]['txdrop'] = t[12].to_i
+            netdev[t[0]]['txfifo'] = t[13].to_i
+            netdev[t[0]]['txcolls'] = t[14].to_i
+            netdev[t[0]]['txcarrier'] = t[15].to_i
+            netdev[t[0]]['txcompressed'] = t[16].to_i
+          end
+          event = LogStash::Event.new(netdev: netdev,
+                                      host: @host,
+                                      type: @type || 'system-netdev',
+                                      metric_name: 'system-netdev',
+                                      remote_host: ch[:host],
+                                      command: COMMANDS[:netdev])
           decorate(event)
           queue << event
         end

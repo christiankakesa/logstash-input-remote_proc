@@ -1,4 +1,4 @@
-# logstash-input-remote_proc
+# Logstash-input-remote_proc
 This plugin retrieve `/proc/*` information remotely via SSH connection.
 
 ## How to use
