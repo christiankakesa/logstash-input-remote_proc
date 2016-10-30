@@ -55,7 +55,8 @@ module LogStash
         netdev: 'cat /proc/net/dev',
         netwireless: 'cat /proc/net/wireless',
         mounts: 'cat /proc/mounts',
-        crypto: 'cat /proc/crypto'
+        crypto: 'cat /proc/crypto',
+        sysvipcshm: 'cat /proc/sysvipc/shm'
       }.freeze
 
       config_name 'remote_proc'
@@ -114,6 +115,46 @@ module LogStash
       def prepare_servers!(data)
         data.select! { |k| SERVER_OPTIONS.include?(k) }
         data.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+      end
+
+      # Process SYSVIPCSHM data
+      def proc_sysvipcshm(queue)
+        @ssh_session.exec(COMMANDS[:sysvipcshm]) do |ch, stream, data|
+          next unless stream == :stdout # ignore :stderr
+          lines = data.split(/$/)
+          _ = lines.shift # Remove column name line
+          sysvipcshm = {}
+          lines.each do |l|
+            t = l.strip.split(/\s+/)
+            next if t.empty? || t.length < 16
+            sysvipcshm[t[1]] = {} # shmid
+            sysvipcshm[t[1]]['key'] = t[0]
+            sysvipcshm[t[1]]['perms'] = t[2]
+            sysvipcshm[t[1]]['size'] = t[3]
+            sysvipcshm[t[1]]['cpid'] = t[4]
+            sysvipcshm[t[1]]['lpid'] = t[5]
+            sysvipcshm[t[1]]['nattch'] = t[6]
+            sysvipcshm[t[1]]['uid'] = t[7]
+            sysvipcshm[t[1]]['gid'] = t[8]
+            sysvipcshm[t[1]]['cuid'] = t[9]
+            sysvipcshm[t[1]]['cgid'] = t[10]
+            sysvipcshm[t[1]]['atime'] = t[11]
+            sysvipcshm[t[1]]['dtime'] = t[12]
+            sysvipcshm[t[1]]['ctime'] = t[13]
+            sysvipcshm[t[1]]['rss'] = t[14]
+            sysvipcshm[t[1]]['swap'] = t[15]
+          end
+          next if sysvipcshm.empty?
+          event = LogStash::Event.new(sysvipcshm: sysvipcshm,
+                                      host: @host,
+                                      type: @type || 'system-sysvipcshm',
+                                      metric_name: 'system-sysvipcshm',
+                                      remote_host: ch[:host],
+                                      command: COMMANDS[:sysvipcshm],
+                                      message: data)
+          decorate(event)
+          queue << event
+        end
       end
 
       # Process CRYPTO data
