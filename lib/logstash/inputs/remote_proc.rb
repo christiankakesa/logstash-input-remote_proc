@@ -15,6 +15,9 @@ module LogStash
     #  * /proc/vmstat
     #  * /proc/diskstats
     #  * /proc/net/dev
+    #  * /proc/net/wireless
+    #  * /proc/net/mounts
+    #  * /proc/net/crypto
     #
     # The fallowing example shows how to retrieve system metrics from
     # remote server and output the result to the standard output:
@@ -51,7 +54,8 @@ module LogStash
         diskstats: 'cat /proc/diskstats',
         netdev: 'cat /proc/net/dev',
         netwireless: 'cat /proc/net/wireless',
-        mounts: 'cat /proc/mounts'
+        mounts: 'cat /proc/mounts',
+        crypto: 'cat /proc/crypto'
       }.freeze
 
       config_name 'remote_proc'
@@ -90,10 +94,8 @@ module LogStash
       def run(queue)
         # we can abort the loop if stop? becomes true
         until stop?
-          [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
-           :proc_diskstats, :proc_netdev, :proc_netwireless,
-           :proc_mounts].each do |method|
-            send(method, queue)
+          COMMANDS.keys.each do |method|
+            send("proc_#{method}", queue)
           end
 
           @ssh_session.loop
@@ -112,6 +114,37 @@ module LogStash
       def prepare_servers!(data)
         data.select! { |k| SERVER_OPTIONS.include?(k) }
         data.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+      end
+
+      # Process CRYPTO data
+      def proc_crypto(queue)
+        @ssh_session.exec(COMMANDS[:crypto]) do |ch, stream, data|
+          next unless stream == :stdout # ignore :stderr
+          crypto = {}
+          current_crypto = ''
+          data.split(/$/).each do |line|
+            l = line.strip
+            next if l.empty?
+            t = l.split(/\s+:\s+/)
+            next if t.empty? || t.length != 2
+            if 'name'.eql?(t[0])
+              current_crypto = t[1]
+              crypto[current_crypto] = {}
+              next
+            end
+            crypto[current_crypto][t[0]] = t[1] unless current_crypto.empty?
+          end
+          next if crypto.empty?
+          event = LogStash::Event.new(crypto: crypto,
+                                      host: @host,
+                                      type: @type || 'system-crypto',
+                                      metric_name: 'system-crypto',
+                                      remote_host: ch[:host],
+                                      command: COMMANDS[:crypto],
+                                      message: data)
+          decorate(event)
+          queue << event
+        end
       end
 
       # Process MOUNTS data
@@ -339,7 +372,7 @@ module LogStash
       def proc_cpuinfo(queue)
         @ssh_session.exec(COMMANDS[:cpuinfo]) do |ch, stream, data|
           next unless stream == :stdout # ignore :stderr
-          cpuinfo = {}
+          cpuinfo = {} # TODO(fenicks): change to array
           num_cpu = 0
           data.split(/$/).each do |line|
             next if line.strip.empty?
