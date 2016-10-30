@@ -50,7 +50,8 @@ module LogStash
         vmstat: 'cat /proc/vmstat',
         diskstats: 'cat /proc/diskstats',
         netdev: 'cat /proc/net/dev',
-        netwireless: 'cat /proc/net/wireless'
+        netwireless: 'cat /proc/net/wireless',
+        mounts: 'cat /proc/mounts'
       }.freeze
 
       config_name 'remote_proc'
@@ -90,7 +91,8 @@ module LogStash
         # we can abort the loop if stop? becomes true
         until stop?
           [:proc_cpuinfo, :proc_meminfo, :proc_loadavg, :proc_vmstat,
-           :proc_diskstats, :proc_netdev, :proc_netwireless].each do |method|
+           :proc_diskstats, :proc_netdev, :proc_netwireless,
+           :proc_mounts].each do |method|
             send(method, queue)
           end
 
@@ -110,6 +112,37 @@ module LogStash
       def prepare_servers!(data)
         data.select! { |k| SERVER_OPTIONS.include?(k) }
         data.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+      end
+
+      # Process MOUNTS data
+      def proc_mounts(queue)
+        @ssh_session.exec(COMMANDS[:mounts]) do |ch, stream, data|
+          next unless stream == :stdout # ignore :stderr
+          mounts = {}
+          data.split(/$/).each do |line|
+            t = line.strip.split(/\s+/)
+            next if t.empty? || t.length < 6
+            # mounted device name
+            device = {}
+            device['mountPoint'] = t[1]
+            device['fsType'] = t[2]
+            device['fsOptions'] = t[3].split(/,/)
+            device['dump'] = t[4]
+            device['pass'] = t[5]
+            mounts[t[0]] = [] unless mounts.include?(t[0])
+            mounts[t[0]] << device
+          end
+          next if mounts.empty?
+          event = LogStash::Event.new(mounts: mounts,
+                                      host: @host,
+                                      type: @type || 'system-mounts',
+                                      metric_name: 'system-mounts',
+                                      remote_host: ch[:host],
+                                      command: COMMANDS[:mounts],
+                                      message: data)
+          decorate(event)
+          queue << event
+        end
       end
 
       # Process NETWIRELESS data.
