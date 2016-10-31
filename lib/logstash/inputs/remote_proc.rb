@@ -18,6 +18,7 @@ module LogStash
     #  * /proc/net/wireless
     #  * /proc/net/mounts
     #  * /proc/net/crypto
+    #  * /proc/sysvipc/shm
     #
     # The fallowing example shows how to retrieve system metrics from
     # remote server and output the result to the standard output:
@@ -26,7 +27,10 @@ module LogStash
     # -------------------------------------------------------------------------
     # input {
     #   remote_proc {
-    #     servers => [{ host => "remote.server.com" username => "medium" }]
+    #     servers => [
+    #       { host => "remote.server.com" username => "medium" },
+    #       { host => "h2.net" username => "poc" gateway_host => "h.gw.net" gateway_username => "user" }
+    #     ]
     #   }
     # }
     #
@@ -38,11 +42,16 @@ module LogStash
     class RemoteProc < LogStash::Inputs::Base
       # Describe valid keys and default values in `@servers` parameter.
       SERVER_OPTIONS = {
-        'host' => 'localhost',     # :string
-        'port' => 22,              # :number
-        'ssh_private_key' => nil,  # :path (needed if no 'password')
-        'username' => ENV['USER'], # :string (default to unix $USER)
-        'password' => nil          # :string (needed if no 'ssh_private_key')
+        'host' => 'localhost', # :string
+        'port' => 22, # :number
+        'ssh_private_key' => nil, # :path (needed if no 'password')
+        'username' => ENV['USER'] || ENV['USERNAME'] || 'nobody', # :string (default to unix $USER)
+        'password' => nil, # :string (needed if no 'ssh_private_key')
+        'gateway_host' => nil, # :string
+        'gateway_port' => 22, # :number
+        'gateway_username' => ENV['USER'] || ENV['USERNAME'] || 'nobody', # :string (default to unix $USER)
+        'gateway_password' => nil, # :string
+        'gateway_ssh_private_key' => nil # :string
       }.freeze
 
       # Liste of commands for each `/proc` endpoints.
@@ -75,21 +84,16 @@ module LogStash
       config :interval, validate: :number, default: 60
 
       def register
-        require 'net/ssh/multi'
-
-        # Prepare all server connections.
-        @ssh_session = Net::SSH::Multi.start(on_error: :warn)
-        @servers.each do |s|
-          prepare_servers!(s)
-          option = if s['ssh_private_key']
-                     { auth_methods: ['publickey'], keys: [s['ssh_private_key']] }
-                   else
-                     { password: s['password'] }
-                   end
-          @ssh_session.use("#{s['username']}@#{s['host']}:#{s['port']}", option)
-        end
-
         @host = Socket.gethostname
+
+        require 'net/ssh/multi'
+        @ssh_session = Net::SSH::Multi.start(on_error: :warn)
+
+        # Don't forget to close all gateways manually in `stop` method.
+        @ssh_gateways = []
+
+        # Handle server configuration
+        configure_servers
       end # def register
 
       def run(queue)
@@ -107,6 +111,7 @@ module LogStash
 
       def stop
         @ssh_session.close
+        @ssh_gateways.map(&:shutdown!) unless @ssh_gateways.empty?
       end
 
       private
@@ -115,6 +120,37 @@ module LogStash
       def prepare_servers!(data)
         data.select! { |k| SERVER_OPTIONS.include?(k) }
         data.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+      end
+
+      # Prepare all server configuration
+      def configure_servers
+        @servers.each do |s|
+          prepare_servers!(s)
+
+          session_options = { timeout: Integer(@interval * 0.8) }
+          session_options[:password] = s['password'] if s['password']
+          if s['ssh_private_key']
+            session_options[:auth_methods] = ['publickey']
+            session_options[:keys] = [s['ssh_private_key']]
+          end
+          if s['gateway_host']
+            gw_opts = { timeout: Integer(@interval * 0.8),
+                        port: s['gateway_port'] }
+            gw_opts[:password] = s['gateway_password'] if s['gateway_password']
+            if s['gateway_ssh_private_key']
+              gw_opts[:auth_methods] = ['publickey']
+              gw_opts[:keys] = s['gateway_ssh_private_key']
+            end
+            gw = Net::SSH::Gateway.new(s['gateway_host'],
+                                       s['gateway_username'],
+                                       gw_opts)
+            @ssh_gateways << gw
+            session_options[:via] = gw
+          end
+
+          @ssh_session.use("#{s['username']}@#{s['host']}:#{s['port']}",
+                           session_options)
+        end
       end
 
       # Process SYSVIPCSHM data

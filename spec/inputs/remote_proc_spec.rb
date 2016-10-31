@@ -14,8 +14,8 @@ describe LogStash::Inputs::RemoteProc do
   let(:queue) { [] }
 
   before do
-    ssh_session = double('ssh_session').as_null_object
-    allow(Net::SSH::Multi).to receive(:start).with(on_error: :warn)
+    ssh_session = spy('Net::SSH::Multi')
+    expect(Net::SSH::Multi).to receive(:start).with(any_args)
       .and_return(ssh_session)
   end
 
@@ -36,6 +36,23 @@ describe LogStash::Inputs::RemoteProc do
         'servers' => { 'host' => 'not_konown_host' }
       )
       expect { rp.register }.to_not raise_error
+    end
+  end
+
+  context 'when gateway is provided' do
+    it '.register' do
+      ssh_gateway = spy('Net::SSH::Gateway')
+      expect(Net::SSH::Gateway).to receive(:new).with(any_args)
+        .and_return(ssh_gateway)
+      rp_gateway = described_class.new(
+        'servers' => [{ 'host' => 'localhost',
+                        'port' => 22,
+                        'username' => ENV['USER'],
+                        'gateway_host' => '10.0.0.1',
+                        'gateway_port' => 22 }],
+        'interval' => 100
+      )
+      expect { rp_gateway.register }.to_not raise_error
     end
   end
 end
