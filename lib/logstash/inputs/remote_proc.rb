@@ -103,7 +103,7 @@ module LogStash
             send("proc_#{method}", queue)
           end
 
-          @ssh_session.loop
+          @ssh_session.loop(@interval)
 
           Stud.stoppable_sleep(@interval) { stop? }
         end # loop
@@ -127,15 +127,14 @@ module LogStash
         @servers.each do |s|
           prepare_servers!(s)
 
-          session_options = { timeout: Integer(@interval * 0.8) }
+          session_options = {}
           session_options[:password] = s['password'] if s['password']
           if s['ssh_private_key']
             session_options[:auth_methods] = ['publickey']
             session_options[:keys] = [s['ssh_private_key']]
           end
           if s['gateway_host']
-            gw_opts = { timeout: Integer(@interval * 0.8),
-                        port: s['gateway_port'] }
+            gw_opts = { port: s['gateway_port'] }
             gw_opts[:password] = s['gateway_password'] if s['gateway_password']
             if s['gateway_ssh_private_key']
               gw_opts[:auth_methods] = ['publickey']
