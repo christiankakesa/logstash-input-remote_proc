@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'logstash-input-remote_proc'
-  s.version = '0.0.21'
+  s.version = '0.0.22'
   s.licenses = ['Apache License (2.0)']
   s.summary = 'This Logstash plugin collects PROCFS metrics through remote SSH servers.'
   s.description = 'This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program'
@@ -31,5 +31,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'net-ssh', '~> 2.9', '>= 2.9.2'
   s.add_runtime_dependency 'net-ssh-multi', '~>1.2', '>= 1.2.1'
   s.add_runtime_dependency 'stud', '~> 0.0', '>= 0.0.22'
-  s.add_development_dependency 'logstash-devutils', '>= 0.0.16'
+  s.add_development_dependency 'logstash-devutils', '>= 1.1.0'
 end
