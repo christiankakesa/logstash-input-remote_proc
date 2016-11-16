@@ -1,7 +1,8 @@
 # encoding: utf-8
 require 'logstash/devutils/rspec/spec_helper'
 require 'logstash/inputs/remote_proc'
-require 'net/ssh/multi'
+require 'net/ssh'
+require 'net/ssh/gateway'
 
 describe LogStash::Inputs::RemoteProc do
   let(:config) do
@@ -14,9 +15,8 @@ describe LogStash::Inputs::RemoteProc do
   let(:queue) { [] }
 
   before do
-    ssh_session = spy('Net::SSH::Multi')
-    expect(Net::SSH::Multi).to receive(:start).with(any_args)
-      .and_return(ssh_session)
+    ssh_session = spy('Net::SSH')
+    allow(Net::SSH).to receive(:start).with(any_args).and_return(ssh_session)
   end
 
   it_behaves_like 'an interruptible input plugin' do
