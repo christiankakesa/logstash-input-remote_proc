@@ -103,6 +103,7 @@ module LogStash
           @ssh_sessions.each do |ssh|
             COMMANDS.each do |method, command|
               result_data = String.new('')
+              error_data = String.new('')
               channel = ssh.open_channel do |chan|
                 chan.exec(command) do |ch, success|
                   next unless success
@@ -111,14 +112,20 @@ module LogStash
                   ch.on_data { |_c, data| result_data << data }
 
                   # "on_extended_data", called when the process writes to stderr
-                  ch.on_extended_data {} # |_c, _type, _data|
+                  ch.on_extended_data { |_ch, _type, data| error_data << data }
 
                   ch.on_close(&:close)
                 end
               end
               channel.wait
+              unless error_data.empty?
+                error_data = error_data.force_encoding('UTF-8')
+                @logger.warn(error_data)
+                next
+              end
               next if result_data.empty?
-              result = send("proc_#{method}", result_data)
+              result = send("proc_#{method}",
+                            result_data.force_encoding('UTF-8'))
               next if result.empty?
               event = LogStash::Event.new(
                 method => result,
