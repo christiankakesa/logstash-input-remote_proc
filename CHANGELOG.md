@@ -1,3 +1,61 @@
+## 0.1.0
+ - Update USAGE.md.
+ - Update CHANGELOG.md.
+
+## 0.0.24
+ - Handle SSH channel message error.
+
+## 0.0.23
+ - Remove net-ssh-multi.
+
+## 0.0.22
+ - Update dependency gems version.
+
+## 0.0.21
+ - Add interval in SSH Session.loop.
+
+## 0.0.20
+ - Add gateway parameters for each hosts.
+
+## 0.0.19
+ - Add 'proc_sysvipcshm' method.
+
+## 0.0.18
+ - Add 'proc_crypto' method.
+
+## 0.0.17
+ - Add 'proc_netwireless' method.
+ - Add 'proc_mounts' method.
+
+## 0.0.16
+ - Add 'proc_netwireless' method.
+
+## 0.015
+ - Fix: RSPEC tests.
+ - Fix the gem version.
+
+## 0.0.14
+ - Add message field with raw data in 'Logstash::Event'
+
+## 0.0.13
+ - Fix: 'proc_netdev' call method.
+
+## 0.0.12
+ - Fix `proc_*` method call.
+
+## 0.0.11
+ - Add 'proc_netdev' method.
+
+## 0.0.10
+ - Add 'proc_diskstats' method.
+
+## 0.0.9
+ - Update README.md.
+
+## 0.0.8
+ - Add USAGE.md.
+ - Update code comments.
+
 ## 0.0.7
  - Fix: run the test with Java8 to fix 'rspec' call error.
 
