@@ -107,18 +107,16 @@ module LogStash
               channel = ssh.open_channel do |chan|
                 chan.exec(command) do |ch, success|
                   next unless success
-
                   # "on_data" called when the process writes to stdout
                   ch.on_data { |_c, data| result_data << data }
-
                   # "on_extended_data", called when the process writes to stderr
                   ch.on_extended_data { |_ch, _type, data| error_data << data }
-
                   ch.on_close(&:close)
                 end
               end
               channel.wait
               unless error_data.empty?
+                error_data.chomp!
                 error_data = error_data.force_encoding('UTF-8')
                 @logger.warn(error_data)
                 next
@@ -132,8 +130,8 @@ module LogStash
                 host: @host,
                 type: @type || "system-#{method}",
                 metric_name: "system-#{method}",
-                remote_host: channel.connection.transport.host,
-                remote_port: channel.connection.transport.port,
+                remote_host: channel.connection.options[:properties]['host'],
+                remote_port: channel.connection.options[:properties]['port'],
                 command: command,
                 message: result_data
               )
@@ -164,7 +162,7 @@ module LogStash
         @servers.each do |s|
           prepare_servers!(s)
 
-          session_options = {}
+          session_options = { properties: s }
           session_options[:port] = s['port'] if s['port']
           session_options[:password] = s['password'] if s['password']
           if s['ssh_private_key']
