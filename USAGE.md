@@ -3,24 +3,34 @@ This plugin retrieves `/proc/*` metrics remotely via SSH connections.
 
 ## How to use
 
-**Default values**
+**Default values for `servers`**
 
-```ruby
-    SERVER_OPTIONS = {
-        'host' => 'localhost', # :string
-        'port' => 22, # :number
-        'ssh_private_key' => nil, # :path (needed if no 'password')
-        'username' => ENV['USER'] || ENV['USERNAME'] || 'nobody', # :string (default to unix $USER)
-        'password' => nil, # :string (needed if no 'ssh_private_key')
-        'gateway_host' => nil, # :string
-        'gateway_port' => 22, # :number
-        'gateway_username' => ENV['USER'] || ENV['USERNAME'] || 'nobody', # :string (default to unix $USER)
-        'gateway_password' => nil, # :string
-        'gateway_ssh_private_key' => nil # :string
-    }.freeze
+```logstash
+servers => [
+    {
+        host => "localhost"     # :string
+        port => 22              # :number
+        ssh_private_key => ...  # :path (needed if no 'password'), empty by default
+        username => ${USER} || ${USERNAME} || 'nobody' # :string (default to unix $USER)
+        password => ...                            # :string (needed if no 'ssh_private_key'), empty by default
+        gateway_host => ...                        # :string (if set, gateway is used), empty by default
+        gateway_port => 22                         # :number
+        gateway_username => ${USER} || ${USERNAME} || 'nobody' # :string (default to unix $USER)
+        gateway_password => ...                                # :string (needed if gateway_host is set and no 'ssh_private_key' is given), empty by default
+        gateway_ssh_private_key => ...                         # :path (needed if no 'gateway_password'), empty by default
+    }
+]
 ```
 
 When no password is given, the private key path for both `host` and `gateway_host` are : `$HOME/.ssh/id_dsa`, `$HOME/.ssh2/id_dsa`, `$HOME/.ssh/id_rsa`, and `$HOME/.ssh2/id_rsa`.
+
+**Default values for `proc_list`**
+
+```logstash
+proc_list => ["cpuinfo", "meminfo", "loadavg", "vmstat", "diskstats", "netdev", "netwireless", "mounts", "crypto", "sysvipcshm"]
+```
+
+If `proc_list` is not declared all of them are processed. An equivalent declaration is `proc_file => ["_all"]`.
 
 ### SSH server with default values and authenticate by private key
 

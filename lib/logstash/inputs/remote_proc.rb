@@ -78,6 +78,23 @@ module LogStash
       # The default values are specified in `#{SERVER_OPTIONS}` hash.
       config :servers, validate: :hash, list: true, required: true
 
+      # List of PROFS information to retrieve
+      #
+      # Valid values are:
+      #
+      # [source,ruby]
+      # ------------------------------------------------------------------------
+      # %w(
+      #   cpuinfo meminfo loadavg vmstat diskstats
+      #   netdev netwireless mounts crypto sysvipcshm
+      #  )
+      # ------------------------------------------------------------------------
+      #
+      # By default all metrics are retrieved.
+      config :proc_list,
+             validate: :array,
+             default: ['_all']
+
       # Set how frequently messages should be sent.
       #
       # The default, `60`, means send a message every second.
@@ -88,20 +105,19 @@ module LogStash
 
         require 'net/ssh'
         require 'net/ssh/gateway'
+
         @ssh_sessions = []
-
-        # Don't forget to close all gateways manually in `stop` method.
         @ssh_gateways = []
+        @commands = ['_all']
 
-        # Handle server configuration
-        configure_servers
+        configure!
       end # def register
 
       def run(queue)
         # we can abort the loop if stop? becomes true
         until stop?
           @ssh_sessions.each do |ssh|
-            COMMANDS.each do |method, command|
+            @commands.each do |method, command|
               result_data = String.new('')
               error_data = String.new('')
               channel = ssh.open_channel do |chan|
@@ -158,7 +174,7 @@ module LogStash
       end
 
       # Prepare all server configuration
-      def configure_servers
+      def configure!
         @servers.each do |s|
           prepare_servers!(s)
 
@@ -189,6 +205,11 @@ module LogStash
                                             session_options)
           end
         end
+        @commands = if (@proc_list - ['_all']).empty?
+                      COMMANDS
+                    else
+                      COMMANDS.select { |k, _| @proc_list.include?(k.to_s) }
+                    end
       end
 
       # Process SYSVIPCSHM data
