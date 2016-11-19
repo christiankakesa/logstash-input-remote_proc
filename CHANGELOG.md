@@ -1,3 +1,9 @@
+## 0.1.2
+ - Add metrics filter to choose only those needed for the dashboard.
+
+## 0.1.1
+ - Fix remote_host value which always was '127.0.0.1' when using gateway.
+
 ## 0.1.0
  - Update USAGE.md.
  - Update CHANGELOG.md.
