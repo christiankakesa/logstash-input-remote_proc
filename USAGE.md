@@ -38,6 +38,12 @@ If `proc_list` is not declared all of them are processed. An equivalent declarat
     input { remote_proc { servers => [{}] } }
 ```
 
+### SSH server with default values and authenticate by private key for `cpuinfo` and `meminfo`
+
+```javascript
+    input { remote_proc { servers => [{}] proc_list => ["cpuinfo", "meminfo"] } }
+```
+
 ### With SSH server `host`, `port` and `username` and authenticate by private key
 
 ```javascript
