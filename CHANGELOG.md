@@ -1,3 +1,9 @@
+## 0.1.4
+ - Update comment.
+
+## 0.1.3
+ - Fixed CHANGELOG.md.
+
 ## 0.1.2
  - Add metrics filter to choose only those needed for the dashboard.
 

@@ -33,10 +33,6 @@ module LogStash
     #     ]
     #   }
     # }
-    #
-    # output {
-    #   stdout { codec => rubydebug }
-    # }
     # -------------------------------------------------------------------------
     #
     class RemoteProc < LogStash::Inputs::Base
