@@ -1,3 +1,12 @@
+## 0.1.7
+ - Update CHANGELOG.md.
+
+## 0.1.6
+ - Add 'proc_stat' method.
+
+## 0.1.5
+ - Update USAGE.md: example with limited 'proc_list'.
+
 ## 0.1.4
  - Update comment.
 
