@@ -10,6 +10,7 @@ module LogStash
     #
     # Supported endpoints :
     #  * /proc/cpuinfo
+    #  * /proc/stat
     #  * /proc/meminfo
     #  * /proc/loadavg
     #  * /proc/vmstat
@@ -31,6 +32,21 @@ module LogStash
     #       { host => "remote.server.com" username => "medium" },
     #       { host => "h2.net" username => "poc" gateway_host => "h.gw.net" gateway_username => "user" }
     #     ]
+    #     proc_list => ["cpuinfo", "stat", "meminfo", "diskstats"]
+    #   }
+    # }
+    # -------------------------------------------------------------------------
+    #
+    # Example with `proc_list => ["_all"]` which is default.
+    # [source,ruby]
+    # -------------------------------------------------------------------------
+    # input {
+    #   remote_proc {
+    #     servers => [
+    #       { host => "remote.server.com" username => "medium" },
+    #       { host => "h2.net" username => "poc" gateway_host => "h.gw.net" gateway_username => "user" }
+    #     ]
+    #     proc_list => ["_all"]
     #   }
     # }
     # -------------------------------------------------------------------------
@@ -53,6 +69,7 @@ module LogStash
       # Liste of commands for each `/proc` endpoints.
       COMMANDS = {
         cpuinfo: 'cat /proc/cpuinfo',
+        stat: 'cat /proc/stat',
         meminfo: 'cat /proc/meminfo',
         loadavg: 'cat /proc/loadavg',
         vmstat: 'cat /proc/vmstat',
@@ -81,7 +98,7 @@ module LogStash
       # [source,ruby]
       # ------------------------------------------------------------------------
       # %w(
-      #   cpuinfo meminfo loadavg vmstat diskstats
+      #   cpuinfo stat meminfo loadavg vmstat diskstats
       #   netdev netwireless mounts crypto sysvipcshm
       #  )
       # ------------------------------------------------------------------------
@@ -403,6 +420,44 @@ module LogStash
           meminfo['CalcMemUsed'] = meminfo['MemTotal'] - meminfo['MemFree']
         end
         meminfo
+      end
+
+      # Process STAT data.
+      # http://lxr.free-electrons.com/source/Documentation/filesystems/proc.txt#L1294
+      def proc_stat(data)
+        return {} unless data
+        stat = {}
+        data.split(/$/).each do |line|
+          m = /^(cpu[0-9]*|intr|ctxt|btime|processes|procs_running|procs_blocked|softirq)\s+(.*)/i.match(line)
+          next unless m
+          if m[1] =~ /^cpu[0-9]*$/i
+            m_sub = m[2].split(/\s+/)
+            if m_sub && m_sub.length >= 10
+              m_sub.map!(&:to_i)
+              stat[m[1]] = {
+                user: m_sub[0],
+                nice: m_sub[1],
+                system: m_sub[2],
+                idle: m_sub[3],
+                iowait: m_sub[4],
+                irq: m_sub[5],
+                softirq: m_sub[6],
+                steal: m_sub[7],
+                guest: m_sub[8],
+                guest_nice: m_sub[9]
+              }
+            end
+          elsif m[1] =~ /^ctxt|btime|processes|procs_running|procs_blocked$/i
+            stat[m[1]] = m[2].to_i
+          elsif m[1] =~ /^intr|softirq$/i
+            m_sub = m[2].split(/\s+/)
+            next if m_sub.empty?
+            total = m_sub.shift.to_i
+            stat[m[1]] = { total: total }
+            stat[m[1]][:subsequents] = m_sub.map!(&:to_i)
+          end
+        end
+        stat
       end
 
       # Process CPUINFO data.
