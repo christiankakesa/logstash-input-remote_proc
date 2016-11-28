@@ -63,23 +63,28 @@ module LogStash
         'gateway_port' => 22, # :number
         'gateway_username' => ENV['USER'] || ENV['USERNAME'] || 'nobody', # :string (default to unix $USER)
         'gateway_password' => nil, # :string
-        'gateway_ssh_private_key' => nil # :string
+        'gateway_ssh_private_key' => nil, # :string
+        'system_reader' => 'cat', # :string
+        'proc_prefix_path' => '/proc' # :string
       }.freeze
 
       # Liste of commands for each `/proc` endpoints.
       COMMANDS = {
-        cpuinfo: 'cat /proc/cpuinfo',
-        stat: 'cat /proc/stat',
-        meminfo: 'cat /proc/meminfo',
-        loadavg: 'cat /proc/loadavg',
-        vmstat: 'cat /proc/vmstat',
-        diskstats: 'cat /proc/diskstats',
-        netdev: 'cat /proc/net/dev',
-        netwireless: 'cat /proc/net/wireless',
-        mounts: 'cat /proc/mounts',
-        crypto: 'cat /proc/crypto',
-        sysvipcshm: 'cat /proc/sysvipc/shm'
+        cpuinfo: '%{system_reader} %{proc_prefix_path}/cpuinfo',
+        stat: '%{system_reader} %{proc_prefix_path}/stat',
+        meminfo: '%{system_reader} %{proc_prefix_path}/meminfo',
+        loadavg: '%{system_reader} %{proc_prefix_path}/loadavg',
+        vmstat: '%{system_reader} %{proc_prefix_path}/vmstat',
+        diskstats: '%{system_reader} %{proc_prefix_path}/diskstats',
+        netdev: '%{system_reader} %{proc_prefix_path}/net/dev',
+        netwireless: '%{system_reader} %{proc_prefix_path}/net/wireless',
+        mounts: '%{system_reader} %{proc_prefix_path}/mounts',
+        crypto: '%{system_reader} %{proc_prefix_path}/crypto',
+        sysvipcshm: '%{system_reader} %{proc_prefix_path}/sysvipc/shm'
       }.freeze
+
+      # By default call all procfs method
+      DEFAULT_PROC_LIST = ['_all'].freeze
 
       config_name 'remote_proc'
 
@@ -121,7 +126,6 @@ module LogStash
 
         @ssh_sessions = []
         @ssh_gateways = []
-        @commands = ['_all']
 
         configure!
       end # def register
@@ -130,10 +134,10 @@ module LogStash
         # we can abort the loop if stop? becomes true
         until stop?
           @ssh_sessions.each do |ssh|
-            @commands.each do |method, command|
-              result_data = String.new('')
-              error_data = String.new('')
-              channel = ssh.open_channel do |chan|
+            ssh.open_channel do |chan|
+              chan.connection.options[:properties]['_commands'].each do |method, command|
+                result_data = String.new('')
+                error_data = String.new('')
                 chan.exec(command) do |ch, success|
                   next unless success
                   # "on_data" called when the process writes to stdout
@@ -142,30 +146,30 @@ module LogStash
                   ch.on_extended_data { |_ch, _type, data| error_data << data }
                   ch.on_close(&:close)
                 end
+                chan.wait
+                unless error_data.empty?
+                  error_data.chomp!
+                  error_data = error_data.force_encoding('UTF-8')
+                  @logger.warn(error_data)
+                  next
+                end
+                next if result_data.empty?
+                result = send("proc_#{method}",
+                              result_data.force_encoding('UTF-8'))
+                next if result.empty?
+                event = LogStash::Event.new(
+                  method => result,
+                  host: @host,
+                  type: @type || "system-#{method}",
+                  metric_name: "system-#{method}",
+                  remote_host: chan.connection.options[:properties]['host'],
+                  remote_port: chan.connection.options[:properties]['port'],
+                  command: command,
+                  message: result_data
+                )
+                decorate(event)
+                queue << event
               end
-              channel.wait
-              unless error_data.empty?
-                error_data.chomp!
-                error_data = error_data.force_encoding('UTF-8')
-                @logger.warn(error_data)
-                next
-              end
-              next if result_data.empty?
-              result = send("proc_#{method}",
-                            result_data.force_encoding('UTF-8'))
-              next if result.empty?
-              event = LogStash::Event.new(
-                method => result,
-                host: @host,
-                type: @type || "system-#{method}",
-                metric_name: "system-#{method}",
-                remote_host: channel.connection.options[:properties]['host'],
-                remote_port: channel.connection.options[:properties]['port'],
-                command: command,
-                message: result_data
-              )
-              decorate(event)
-              queue << event
             end
             ssh.loop
           end # @ssh_sessions block
@@ -181,16 +185,25 @@ module LogStash
       private
 
       # Return only valide property keys.
-      def prepare_servers!(data)
-        data.select! { |k| SERVER_OPTIONS.include?(k) }
-        data.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+      def prepare_servers!(server)
+        server.select! { |k| SERVER_OPTIONS.include?(k) }
+        server.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+        cmds = if (@proc_list - ['_all']).empty?
+                 COMMANDS.dup
+               else
+                 COMMANDS.select { |k, _| @proc_list.include?(k.to_s) }
+               end
+        # Replace 'system_reader' and 'proc_prefix_path' in all commands
+        server['_commands'] = cmds.each do |k, v|
+          cmds[k] = v % { system_reader: server['system_reader'],
+                          proc_prefix_path: server['proc_prefix_path'] }
+        end.freeze
       end
 
       # Prepare all server configuration
       def configure!
         @servers.each do |s|
           prepare_servers!(s)
-
           session_options = { properties: s }
           session_options[:port] = s['port'] if s['port']
           session_options[:password] = s['password'] if s['password']
@@ -218,11 +231,6 @@ module LogStash
                                             session_options)
           end
         end
-        @commands = if (@proc_list - ['_all']).empty?
-                      COMMANDS
-                    else
-                      COMMANDS.select { |k, _| @proc_list.include?(k.to_s) }
-                    end
       end
 
       # Process SYSVIPCSHM data

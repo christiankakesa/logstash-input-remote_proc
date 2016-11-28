@@ -1,3 +1,6 @@
+## 0.1.8
+ - Add 'proc_prefix_path' for each server.
+
 ## 0.1.7
  - Update CHANGELOG.md.
 
