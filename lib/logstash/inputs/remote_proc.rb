@@ -134,52 +134,71 @@ module LogStash
         # we can abort the loop if stop? becomes true
         until stop?
           @ssh_sessions.each do |ssh|
-            ssh.open_channel do |chan|
-              chan.connection.options[:properties]['_commands'].each do |method, command|
-                result_data = String.new('')
-                error_data = String.new('')
+            ssh.properties['_commands'].each do |method, command|
+              ssh.open_channel do |chan|
                 chan.exec(command) do |ch, success|
-                  next unless success
+                  ch[:result_data] = String.new('')
+                  ch[:result_error] = String.new('')
+                  ch[:result_host] = ssh.properties['host']
+                  ch[:result_port] = ssh.properties['port']
+                  unless success
+                    @logger.warn('CHANNEL_EXEC_UNSUCCESS',
+                                 command: command,
+                                 host: ch[:result_host],
+                                 port: ch[:result_port])
+                    next
+                  end
                   # "on_data" called when the process writes to stdout
-                  ch.on_data { |_c, data| result_data << data }
+                  ch.on_data { |_c, data| ch[:result_data] << data }
+                  ch.on_process do |_c|
+                    unless ch[:result_error].empty?
+                      ch[:result_error].chomp!
+                      ch[:result_error] = ch[:result_error].force_encoding('UTF-8')
+                      @logger.warn(ch[:result_error])
+                      next
+                    end
+                    next if ch[:result_data].empty?
+                    result = send("proc_#{method}",
+                                  ch[:result_data].force_encoding('UTF-8'))
+                    next if result.empty?
+                    event = LogStash::Event.new(
+                      method => result,
+                      host: @host,
+                      type: @type || "system-#{method}",
+                      metric_name: "system-#{method}",
+                      remote_host: ch[:result_host],
+                      remote_port: ch[:result_port],
+                      command: command,
+                      message: ch[:result_data]
+                    )
+                    decorate(event)
+                    queue << event
+                  end
+                  ch.on_open_failed do |c, code, desc|
+                    @logger.warn('CHANNEL_OPEN_FAILED',
+                                 host: ch[:result_host],
+                                 channel: c,
+                                 code: code,
+                                 description: desc)
+                  end
                   # "on_extended_data", called when the process writes to stderr
-                  ch.on_extended_data { |_ch, _type, data| error_data << data }
+                  ch.on_extended_data do |_ch, _type, data|
+                    ch[:result_error] << data
+                  end
                   ch.on_close(&:close)
                 end
                 chan.wait
-                unless error_data.empty?
-                  error_data.chomp!
-                  error_data = error_data.force_encoding('UTF-8')
-                  @logger.warn(error_data)
-                  next
-                end
-                next if result_data.empty?
-                result = send("proc_#{method}",
-                              result_data.force_encoding('UTF-8'))
-                next if result.empty?
-                event = LogStash::Event.new(
-                  method => result,
-                  host: @host,
-                  type: @type || "system-#{method}",
-                  metric_name: "system-#{method}",
-                  remote_host: chan.connection.options[:properties]['host'],
-                  remote_port: chan.connection.options[:properties]['port'],
-                  command: command,
-                  message: result_data
-                )
-                decorate(event)
-                queue << event
               end
             end
-            ssh.loop
           end # @ssh_sessions block
+          @ssh_sessions.each(&:loop)
           Stud.stoppable_sleep(@interval) { stop? }
         end # until loop
       end # def run
 
       def stop
-        @ssh_sessions.map(&:close)
-        @ssh_gateways.map(&:shutdown!) unless @ssh_gateways.empty?
+        @ssh_sessions.each(&:close)
+        @ssh_gateways.each(&:shutdown!) unless @ssh_gateways.empty?
       end
 
       private
@@ -187,7 +206,7 @@ module LogStash
       # Return only valide property keys.
       def prepare_servers!(server)
         server.select! { |k| SERVER_OPTIONS.include?(k) }
-        server.merge!(SERVER_OPTIONS) { |_key_, old, _new_| old }
+        server.merge!(SERVER_OPTIONS) { |_key, old, _new| old }
         cmds = if (@proc_list - ['_all']).empty?
                  COMMANDS.dup
                else
@@ -197,7 +216,8 @@ module LogStash
         server['_commands'] = cmds.each do |k, v|
           cmds[k] = v % { system_reader: server['system_reader'],
                           proc_prefix_path: server['proc_prefix_path'] }
-        end.freeze
+        end
+        server['_commands'].freeze
       end
 
       # Prepare all server configuration
