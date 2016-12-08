@@ -49,6 +49,21 @@ module LogStash
     #     proc_list => ["_all"]
     #   }
     # }
+    #
+    # -------------------------------------------------------------------------
+    # Example with specific procfs prefix path and system reader for certain host.
+    # By default the system reader is 'cat' and the procfs prefix path is '/proc'.
+    # [source,ruby]
+    # -------------------------------------------------------------------------
+    # input {
+    #   remote_proc {
+    #     servers => [
+    #       { host => "remote.server.com" username => "medium" system_reader => "dd bs=1 2>/dev/null" proc_prefix_path => "if=/proc"},
+    #       { host => "h2.net" username => "poc" gateway_host => "h.gw.net" gateway_username => "user" }
+    #     ]
+    #     proc_list => ["stat", "meminfo"]
+    #   }
+    # }
     # -------------------------------------------------------------------------
     #
     class RemoteProc < LogStash::Inputs::Base
@@ -137,8 +152,6 @@ module LogStash
             ssh.properties['_commands'].each do |method, command|
               ssh.open_channel do |chan|
                 chan.exec(command) do |ch, success|
-                  ch[:result_data] = String.new('')
-                  ch[:result_error] = String.new('')
                   ch[:result_host] = ssh.properties['host']
                   ch[:result_port] = ssh.properties['port']
                   unless success
@@ -148,6 +161,8 @@ module LogStash
                                  port: ch[:result_port])
                     next
                   end
+                  ch[:result_data] = String.new('')
+                  ch[:result_error] = String.new('')
                   # "on_data" called when the process writes to stdout
                   ch.on_data { |_c, data| ch[:result_data] << data }
                   ch.on_process do |_c|
@@ -212,7 +227,7 @@ module LogStash
                else
                  COMMANDS.select { |k, _| @proc_list.include?(k.to_s) }
                end
-        # Replace 'system_reader' and 'proc_prefix_path' in all commands
+        # Replace 'system_reader' and 'proc_prefix_path' for each host command
         server['_commands'] = cmds.each do |k, v|
           cmds[k] = v % { system_reader: server['system_reader'],
                           proc_prefix_path: server['proc_prefix_path'] }
