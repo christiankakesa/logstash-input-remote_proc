@@ -471,28 +471,27 @@ module LogStash
         return {} unless data
         stat = {}
         data.split(/$/).each do |line|
-          m = /^(cpu[0-9]*|intr|ctxt|btime|processes|procs_running|procs_blocked|softirq)\s+(.*)/i.match(line)
+          m = /^(cpu[0-9]*|intr|ctxt|btime|processes|procs_running|procs_blocked|softirq)\s+(.*)$/i.match(line)
           next unless m
-          if m[1] =~ /^cpu[0-9]*$/i
+          if m[1] =~ /^cpu[0-9]*/i
             m_sub = m[2].split(/\s+/)
-            if m_sub && m_sub.length >= 10
-              m_sub.map!(&:to_i)
+            if m_sub.length >= 7
               stat[m[1]] = {
-                user: m_sub[0],
-                nice: m_sub[1],
-                system: m_sub[2],
-                idle: m_sub[3],
-                iowait: m_sub[4],
-                irq: m_sub[5],
-                softirq: m_sub[6],
-                steal: m_sub[7],
-                guest: m_sub[8],
-                guest_nice: m_sub[9]
+                user: m_sub[0].to_i,
+                nice: m_sub[1].to_i,
+                system: m_sub[2].to_i,
+                idle: m_sub[3].to_i,
+                iowait: m_sub[4].to_i,
+                irq: m_sub[5].to_i,
+                softirq: m_sub[6].to_i,
+                steal: m_sub[7].to_i,
+                guest: m_sub[8].to_i,
+                guest_nice: m_sub[9].to_i
               }
             end
-          elsif m[1] =~ /^ctxt|btime|processes|procs_running|procs_blocked$/i
+          elsif m[1] =~ /^(ctxt|btime|processes|procs_running|procs_blocked)/i
             stat[m[1]] = m[2].to_i
-          elsif m[1] =~ /^intr|softirq$/i
+          elsif m[1] =~ /^(intr|softirq)/i
             m_sub = m[2].split(/\s+/)
             next if m_sub.empty?
             total = m_sub.shift.to_i
