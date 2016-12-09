@@ -29,7 +29,19 @@ When no password is given, the private key path for both `host` and `gateway_hos
 **Default values for `proc_list`**
 
 ```logstash
-proc_list => ["cpuinfo", "stat", "meminfo", "loadavg", "vmstat", "diskstats", "netdev", "netwireless", "mounts", "crypto", "sysvipcshm"]
+proc_list => [
+    "cpuinfo",
+    "stat",
+    "meminfo",
+    "loadavg",
+    "vmstat",
+    "diskstats",
+    "netdev",
+    "netwireless",
+    "mounts",
+    "crypto",
+    "sysvipcshm"
+]
 ```
 
 If `proc_list` is not declared all of them are processed. An equivalent declaration is `proc_file => ["_all"]`.
@@ -57,6 +69,21 @@ input {
     }
 }
 ```
+### SSH server with specific system read command, 'cat' by default, and a specific procfs prefix path, '/proc' by default.
+
+```javascript
+input {
+    remote_proc {
+    servers => [
+        { host => "remote.server.com" username => "medium" system_reader => "dd bs=1 2>/dev/null" proc_prefix_path => "if=/proc"},
+        { host => "h2.net" username => "poc" gateway_host => "h.gw.net" gateway_username => "user" }
+    ]
+    proc_list => ["stat", "meminfo"]
+    }
+}
+```
+
+With this settings, the remote cammand will be: `dd bs=1 2>/dev/null if=/proc/cpuinfo` per example.
 
 ### With SSH server `host`, `port` and `username` and authenticate by a specific private key file
 
