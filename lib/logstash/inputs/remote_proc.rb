@@ -271,11 +271,11 @@ module LogStash
       # Process SYSVIPCSHM data
       def proc_sysvipcshm(data)
         return {} unless data
-        lines = data.split(/$/)
-        _ = lines.shift # Remove column name line
+        lines = data.lines
         sysvipcshm = {}
-        lines.each do |l|
-          t = l.strip.split(/\s+/)
+        lines.drop(1).each do |l|
+          l.strip!
+          t = l.split(/\s+/)
           next if t.empty? || t.length < 16
           sysvipcshm[t[1]] = {} # shmid
           sysvipcshm[t[1]]['key'] = t[0]
@@ -302,10 +302,10 @@ module LogStash
         return {} unless data
         crypto = {}
         current_crypto = ''
-        data.split(/$/).each do |line|
-          l = line.strip
-          next if l.empty?
-          t = l.split(/\s+:\s+/)
+        data.each_line do |line|
+          line.strip!
+          next if line.empty?
+          t = line.split(/\s+:\s+/)
           next if t.empty? || t.length != 2
           if 'name'.eql?(t[0])
             current_crypto = t[1]
@@ -321,8 +321,9 @@ module LogStash
       def proc_mounts(data)
         return {} unless data
         mounts = {}
-        data.split(/$/).each do |line|
-          t = line.strip.split(/\s+/)
+        data.each_line do |line|
+          line.strip!
+          t = line.split(/\s+/)
           next if t.empty? || t.length < 6
           # mounted device name
           device = {}
@@ -340,12 +341,11 @@ module LogStash
       # Process NETWIRELESS data.
       def proc_netwireless(data)
         return {} unless data
-        lines = data.split(/$/)
-        _ = lines.shift # Remove first line
-        _ = lines.shift # Remove second line
+        lines = data.lines
         netwireless = {}
-        lines.each do |l|
-          t = l.strip.split(/[:\s]+/)
+        lines.drop(2).each do |l|
+          l.strip!
+          t = l.split(/[:\s]+/)
           next if t.empty? || t.length < 11 # Last column WE22 is often empty
           netwireless[t[0]] = {}
           netwireless[t[0]]['status'] = t[1].to_i
@@ -366,12 +366,11 @@ module LogStash
       # Process NETDEV data.
       def proc_netdev(data)
         return {} unless data
-        lines = data.split(/$/)
-        _ = lines.shift # Remove first line
-        _ = lines.shift # Remove second line
+        lines = data.lines
         netdev = {}
-        lines.each do |l|
-          t = l.strip.split(/[:\s]+/)
+        lines.drop(2).each do |l|
+          l.strip!
+          t = l.split(/[:\s]+/)
           next if t.empty? || t.length < 17
           netdev[t[0]] = {}
           netdev[t[0]]['rxbytes'] = t[1].to_i
@@ -400,8 +399,9 @@ module LogStash
       def proc_diskstats(data)
         return {} unless data
         diskstats = {}
-        data.split(/$/).each do |line|
-          t = line.strip.split(/\s+/)
+        data.each_line do |line|
+          line.strip!
+          t = line.split(/\s+/)
           next if t.empty? || t.length < 14
           diskstats[t[2]] = {} # device name
           diskstats[t[2]]['major number'] = t[0].to_i
@@ -425,7 +425,7 @@ module LogStash
       def proc_vmstat(data)
         return {} unless data
         vmstat = {}
-        data.split(/$/).each do |line|
+        data.each_line do |line|
           m = /([^\s]+)\s+(\d+)/.match(line)
           vmstat[m[1]] = m[2].to_i if m && m.length >= 3
         end
@@ -453,14 +453,11 @@ module LogStash
       def proc_meminfo(data)
         return {} unless data
         meminfo = {}
-        data.split(/$/).each do |line|
+        data.each_line do |line|
           m = /([^\n\t:]+)\s*:\s+(\d+)(\skb)?$/i.match(line)
           next unless m
           meminfo[m[1]] = m[2].to_i
           meminfo[m[1]] *= 1000 if m[3] # m[3] is not nil if `/KB/i` is found
-        end
-        unless meminfo.empty?
-          meminfo['CalcMemUsed'] = meminfo['MemTotal'] - meminfo['MemFree']
         end
         meminfo
       end
@@ -470,7 +467,7 @@ module LogStash
       def proc_stat(data)
         return {} unless data
         stat = {}
-        data.split(/$/).each do |line|
+        data.each_line do |line|
           m = /^(cpu[0-9]*|intr|ctxt|btime|processes|procs_running|procs_blocked|softirq)\s+(.*)$/i.match(line)
           next unless m
           if m[1] =~ /^cpu[0-9]*/i
@@ -507,8 +504,9 @@ module LogStash
         return {} unless data
         cpuinfo = {} # TODO(fenicks): change to array
         num_cpu = 0
-        data.split(/$/).each do |line|
-          next if line.strip.empty?
+        data.each_line do |line|
+          line.strip!
+          next if line.empty?
           m = /([^\n\t:]+)\s*:\s+(.+)$/.match(line)
           next unless m
           # Apply filters
