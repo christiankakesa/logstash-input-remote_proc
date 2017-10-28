@@ -1,3 +1,24 @@
+## 0.7.0
+ - Code review: performance.
+
+## 0.6.0
+ - Update USAGE.md.
+
+## 0.5.0
+ - Fix /proc/stat parser for CPU data.
+
+## 0.4.0
+ - Fix gem dependencies.
+
+## 0.3.0
+ - Fix bug with logstash-core 5.1.1 with tests.
+
+## 0.2.0
+ - Code review. Add comments
+
+## 0.1.9
+ - Fix multiple procfs path.
+
 ## 0.1.8
  - Add 'proc_prefix_path' for each server.
 
