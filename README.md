@@ -2,6 +2,9 @@
 
 [![Travis Build Status](https://travis-ci.org/fenicks/logstash-input-remote_proc.svg)](https://travis-ci.org/fenicks/logstash-input-remote_proc)
 
+
+> Looking for how to use this plugin, go to the [USAGE.md](https://github.com/fenicks/logstash-input-remote_proc/blob/master/USAGE.md) page.
+
 This is a plugin for [Logstash](https://github.com/elastic/logstash).
 
 It is fully free and fully open source. The license is Apache 2.0, meaning you are pretty much free to use it however you want in whatever way.

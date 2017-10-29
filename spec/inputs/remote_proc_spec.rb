@@ -1,4 +1,3 @@
-# encoding: utf-8
 require 'logstash/devutils/rspec/spec_helper'
 require 'logstash/inputs/remote_proc'
 require 'net/ssh'
@@ -43,7 +42,7 @@ describe LogStash::Inputs::RemoteProc do
     it '.register' do
       ssh_gateway = spy('Net::SSH::Gateway')
       expect(Net::SSH::Gateway).to receive(:new).with(any_args)
-        .and_return(ssh_gateway)
+                                                .and_return(ssh_gateway)
       rp_gateway = described_class.new(
         'servers' => [{ 'host' => 'localhost',
                         'port' => 22,

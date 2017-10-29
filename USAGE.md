@@ -20,6 +20,7 @@ servers => [
         gateway_ssh_private_key => ...                         # :path (needed if no 'gateway_password'), empty by default
         system_reader => "cat"                                 # :string
         proc_prefix_path => "/proc"                            # :string
+        server_tags => "traefik"                               # :string (could be comma separated text)
     }
 ]
 ```
@@ -69,6 +70,7 @@ input {
     }
 }
 ```
+
 ### SSH server with specific system read command, 'cat' by default, and a specific procfs prefix path, '/proc' by default.
 
 ```javascript
@@ -103,6 +105,7 @@ input {
 ```
 
 ### With SSH server `host`, `port` and `username` and authenticate by password
+
 ```javascript
 input {
     remote_proc {
@@ -117,7 +120,9 @@ input {
     }
 }
 ```
+
 ### With SSH Gateway by with private key file and SSH `host` and `password`
+
 ```javascript
 input {
     remote_proc {
@@ -131,6 +136,38 @@ input {
                 gateway_username => "username_passemuraille"
                 gateway_port => 4242
                 gateway_ssh_private_key => "/path/to/private/key"
+            }
+        ]
+    }
+}
+```
+
+### Use server_tags
+
+```javascript
+input {
+    remote_proc {
+        servers => [
+            {
+                host => "domain.com"
+                port => 22
+                username => "fenicks"
+                server_tags => "traefik, ha-proxy, nginx"
+            }
+        ]
+    }
+}
+```
+
+```javascript
+input {
+    remote_proc {
+        servers => [
+            {
+                host => "domain.com"
+                port => 22
+                username => "fenicks"
+                server_tags => "rethinkdb"
             }
         ]
     }

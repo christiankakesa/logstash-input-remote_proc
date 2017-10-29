@@ -1,3 +1,6 @@
+## 0.8.0
+ - Add *server_tags* in server options.
+
 ## 0.7.0
  - Code review: performance.
 

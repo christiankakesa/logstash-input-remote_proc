@@ -1,4 +1,3 @@
-# encoding: utf-8
 require 'logstash/inputs/base'
 require 'logstash/namespace'
 require 'socket' # for Socket.gethostname
@@ -80,7 +79,8 @@ module LogStash
         'gateway_password' => nil, # :string
         'gateway_ssh_private_key' => nil, # :string
         'system_reader' => 'cat', # :string
-        'proc_prefix_path' => '/proc' # :string
+        'proc_prefix_path' => '/proc', # :string
+        'server_tags' => nil # :string (comma separated list)
       }.freeze
 
       # Liste of commands for each `/proc` endpoints.
@@ -154,6 +154,7 @@ module LogStash
                 chan.exec(command) do |ch, success|
                   ch[:result_host] = ssh.properties['host']
                   ch[:result_port] = ssh.properties['port']
+                  ch[:result_server_tags] = ssh.properties['server_tags']
                   unless success
                     @logger.warn('CHANNEL_EXEC_UNSUCCESS',
                                  command: command,
@@ -184,7 +185,8 @@ module LogStash
                       remote_host: ch[:result_host],
                       remote_port: ch[:result_port],
                       command: command,
-                      message: ch[:result_data]
+                      message: ch[:result_data],
+                      server_tags: ch[:result_server_tags]
                     )
                     decorate(event)
                     queue << event
