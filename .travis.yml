@@ -3,8 +3,8 @@ language: ruby
 cache: bundler
 rvm:
   - jruby-9.1.7.0
-before_script:
-  - bundle exec rake vendor
+# before_script:
+#   - bundle exec rake vendor
 script: 
   - bundle exec rspec spec
 jdk: oraclejdk8
