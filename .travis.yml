@@ -5,6 +5,7 @@ matrix:
   include:
   - rvm: jruby-9.1.13.0
   - rvm: jruby-9.1.7.0
+  fast_finish: true
 install: true
 before_script:
   - bundle exec rake vendor
