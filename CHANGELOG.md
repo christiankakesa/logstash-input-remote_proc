@@ -1,3 +1,6 @@
+## 0.8.2
+ - Fix TravisCI files for test validation. 
+
 ## 0.8.0
  - Add *server_tags* in server options.
 
