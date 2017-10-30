@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 require 'logstash/inputs/base'
 require 'logstash/namespace'
 require 'socket' # for Socket.gethostname
