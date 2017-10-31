@@ -77,7 +77,7 @@ input {
 input {
     remote_proc {
     servers => [
-        { host => "remote.server.com" username => "medium" system_reader => "dd bs=1 2>/dev/null" proc_prefix_path => "if=/proc"},
+        { host => "remote.server.com" username => "medium" system_reader => "dd status=none bs=1" proc_prefix_path => "if=/proc"},
         { host => "h2.net" username => "poc" gateway_host => "h.gw.net" gateway_username => "user" }
     ]
     proc_list => ["stat", "meminfo"]
@@ -85,7 +85,7 @@ input {
 }
 ```
 
-With this settings, the remote cammand will be: `dd bs=1 2>/dev/null if=/proc/cpuinfo` per example.
+With this settings, the remote cammand will be: `dd status=none bs=1 if=/proc/cpuinfo` or `dd bs=1 2>/dev/null if=/proc/cpuinfo`.
 
 ### With SSH server `host`, `port` and `username` and authenticate by a specific private key file
 
