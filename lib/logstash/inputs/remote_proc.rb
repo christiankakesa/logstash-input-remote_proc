@@ -67,6 +67,21 @@ module LogStash
     # }
     # -------------------------------------------------------------------------
     #
+    # -------------------------------------------------------------------------
+    # Example with specific server tags.
+    # [source,ruby]
+    # -------------------------------------------------------------------------
+    # input {
+    #   remote_proc {
+    #     servers => [
+    #       { host => "remote.server.com" username => "medium" server_tags => "traefik, nginx, etcd"},
+    #       { host => "h2.net" username => "poc" gateway_host => "h.gw.net" server_tags => "redis" }
+    #     ]
+    #     proc_list => ["stat", "meminfo"]
+    #   }
+    # }
+    # -------------------------------------------------------------------------
+    #
     class RemoteProc < LogStash::Inputs::Base
       # Describe valid keys and default values in `@servers` parameter.
       SERVER_OPTIONS = {
